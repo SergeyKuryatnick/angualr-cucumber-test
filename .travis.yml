@@ -1,0 +1,61 @@
+sudo: false
+language: node_js
+node_js: "9"
+
+git:
+  depth: 3
+  submodules: false
+
+stages:
+  - &stage
+    name: build
+  - name: deploy
+    if: branch = development AND type = push OR tag =~ ^v2
+  - name: publish
+    if: tag =~ ^v2
+
+install:
+  - npm i -g npm@5.7.1
+  - npm ci > /dev/null
+  - npm run build > /dev/null
+  - if [[ "$NGV" == "latest" ]]; then  ./scripts/ci/npm-ng-latest.sh; fi
+  - if [[ "$NGV" == "next" ]]; then  ./scripts/ci/npm-ng-next.sh; fi
+  - npm i ./dist  > /dev/null
+
+jobs:
+#   deploy to ngx-bootstrap.surge.sh
+    - &surge
+      stage: deploy
+      script: npm run demo.build
+      deploy:
+        provider: surge
+        project: ./gh-pages/
+        domain: ngx-bootstrap.surge.sh
+        on: development
+    - <<: *surge
+      env: NGV=latest
+      deploy:
+        provider: surge
+        project: ./gh-pages/
+        domain: ngx-bootstrap-latest.surge.sh
+        on: development
+    - stage: deploy
+      script: npm run build:dynamic
+      before_deploy:
+        - cd ./demo/dist
+      deploy:
+        - provider: heroku
+        api_key: $HEROKU_API_KEY
+        skip_cleanup: true
+        app: ngx-universal
+        on: development
+        - provider: surge
+        skip_cleanup: true
+        on:
+                all_branches: true
+
+cache:
+  apt: true
+  npm: true
+  directories:
+    - node_modules
