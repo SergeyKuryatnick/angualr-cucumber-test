@@ -38,7 +38,8 @@ jobs:
         provider: surge
         project: ./gh-pages/
         domain: ngx-bootstrap-latest.surge.sh
-        on: development
+        on:
+                all_branches: true
     - stage: deploy
       script: npm run build:dynamic
       before_deploy:
